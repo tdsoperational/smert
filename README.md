@@ -1,11 +1,11 @@
 A PoC ransomware i created while i was bored, buggy shit. 
-Fully functional without external libs, however no key is saved, or sent. This means that the files will be forever encrypted.
+Fully functional without external libs, keys and the IV are sent.
 Might expand functionality.
 
 Please do not misuse this code, it's only a small project that was supposed to help me learn C. 
 If you misuse this code, it's on you. Im not liable for any damage caused.
 
-Currently 1/73 detections on virustotal:
-https://www.virustotal.com/gui/file/0afcbf3fe530d3b2920fe932ec904af8cef7b37699238eabbf70d9c4a9feb0c5
+Currently 3/73 detections on virustotal:
+https://www.virustotal.com/gui/file/f786fca1b12e0571e8e70b0a5631e6580a88a401998f09177b5ceaa0aca4b25b
 
 - tdsoperational
