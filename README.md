@@ -1,4 +1,4 @@
-A PoC ransomware i created while i was bored, buggy shit. 
+A PoC ransomware i created while i was bored. 
 Fully functional without external libs, keys and the IV are sent alongside a personal ID.
 Might expand functionality.
 
